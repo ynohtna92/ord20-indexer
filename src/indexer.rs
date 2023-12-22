@@ -79,28 +79,36 @@ impl Indexer {
 
     pub(crate) fn process_block(&mut self, block: &Block) -> i32 {
         let mut inscriptions_count = 0;
+        let mut block_miner_address = "";
         for txs in &block.transactions {
-            let output = if txs.outputs.len() == 1 {
-                txs.outputs.get(0).unwrap()
-            } else {
-                ""
-            };
-            let address = if txs.output_addresses.len() == 1 {
+            let (output, _output_value) = txs.outputs.get(0).unwrap();
+            let address = if !txs.output_addresses.is_empty() {
                 txs.output_addresses.get(0).unwrap()
             } else {
                 ""
             };
-            for input in &txs.inputs {
+            if block_miner_address.is_empty() {
+                block_miner_address = txs.output_addresses.get(0).unwrap();
+                log::debug!("Block Miner Address: {}", block_miner_address);
+            }
+            let mut input_offset = 0;
+            for (input, input_value) in &txs.inputs {
                 // Check inputs for transfer inscription
                 if let Ok(inscription) = self.database.get_inscription_by_output(input.to_string())
                 {
+                    let vout = Indexer::calculate_ordinal_position(input_offset, &txs.outputs);
+                    let address_receiver = if vout > txs.outputs.len() - 1 {
+                        block_miner_address
+                    } else {
+                        txs.output_addresses.get(vout).unwrap()
+                    };
                     if inscription.action.contains("transfer")
                         && !inscription.spent.unwrap_or_default()
                     {
                         if let Ok(transfer_inscription) = self.database.update_inscription_spent(
                             inscription.id,
                             inscription.genesis_address,
-                            address.to_string(),
+                            address_receiver.to_string(),
                             txs.transaction.clone(),
                             0,
                             block.height as i64,
@@ -109,6 +117,10 @@ impl Indexer {
                         }
                     }
                 }
+                input_offset += input_value;
+            }
+            if !txs.inscriptions.is_empty() && address.is_empty() {
+                log::warn!("Empty address on tx {}", txs.transaction);
             }
             for tx_inscription in &txs.inscriptions {
                 let inscription = Inscription {
@@ -144,6 +156,24 @@ impl Indexer {
             }
         }
         inscriptions_count
+    }
+
+    pub(crate) fn calculate_ordinal_position(
+        ordinal_offset: u64,
+        outputs: &Vec<(String, u64)>,
+    ) -> usize {
+        let mut output_index = 0;
+        let mut output_count = 0;
+
+        for (_, output) in outputs {
+            output_count += output;
+            if output_count > ordinal_offset {
+                break;
+            }
+            output_index += 1;
+        }
+
+        output_index
     }
 
     pub(crate) fn add_inscription(
@@ -423,5 +453,52 @@ impl Indexer {
                 inscription.timestamp,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::indexer::Indexer;
+
+    #[test]
+    fn test_calculate_ordinal_position_01() {
+        let ordinal_offset = 10;
+        let outputs = vec![
+            ("output1".to_string(), 10),
+            ("output2".to_string(), 5),
+            ("output3".to_string(), 20),
+        ];
+        assert_eq!(
+            Indexer::calculate_ordinal_position(ordinal_offset, &outputs),
+            1
+        );
+    }
+
+    #[test]
+    fn test_calculate_ordinal_position_02() {
+        let ordinal_offset = 0;
+        let outputs = vec![
+            ("output1".to_string(), 10),
+            ("output2".to_string(), 5),
+            ("output3".to_string(), 20),
+        ];
+        assert_eq!(
+            Indexer::calculate_ordinal_position(ordinal_offset, &outputs),
+            0
+        );
+    }
+
+    #[test]
+    fn test_calculate_ordinal_position_03() {
+        let ordinal_offset = 40;
+        let outputs = vec![
+            ("output1".to_string(), 10),
+            ("output2".to_string(), 5),
+            ("output3".to_string(), 20),
+        ];
+        assert_eq!(
+            Indexer::calculate_ordinal_position(ordinal_offset, &outputs),
+            3
+        );
     }
 }

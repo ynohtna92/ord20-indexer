@@ -37,8 +37,8 @@ pub struct TransactionInscription {
 #[derive(Debug, Deserialize)]
 pub struct Transaction {
     pub transaction: String,
-    pub inputs: Vec<String>,
-    pub outputs: Vec<String>,
+    pub inputs: Vec<(String, u64)>,
+    pub outputs: Vec<(String, u64)>,
     pub output_addresses: Vec<String>,
     pub inscriptions: Vec<TransactionInscription>,
 }

@@ -37,7 +37,34 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
-      - name: Check for Forbidden Words
+  test:
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+
+    runs-on: ${{matrix.os}}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust Toolchain Components
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Install PostgreSQL (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
         run: |
-          sudo apt-get install ripgrep
-          ./bin/forbid
+          choco install postgresql --version=16 --force --params '/Password:postgres'
+          echo 'C:\Program Files\PostgreSQL\16\bin' >> $GITHUB_PATH
+          echo 'C:\Program Files\PostgreSQL\16\lib' >> $GITHUB_PATH
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --all
