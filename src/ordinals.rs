@@ -55,6 +55,13 @@ pub struct Block {
     pub weight: i32,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct Output {
+    pub address: String,
+    pub transaction: String,
+    pub value: u64,
+}
+
 #[derive(Clone)]
 pub struct Ordinals {
     base_url: String,
@@ -106,6 +113,25 @@ impl Ordinals {
         if response.status().is_success() {
             let block = response.json::<Block>().await?;
             Ok(block)
+        } else {
+            Err(format!("Failed with status code: {}", response.status()).into())
+        }
+    }
+
+    pub(crate) async fn get_output(
+        &mut self,
+        outpoint: String,
+    ) -> Result<Output, Box<dyn std::error::Error + Send + Sync>> {
+        let url = format!("{}output/{}", self.base_url, outpoint);
+        let response = reqwest::Client::new()
+            .get(&url)
+            .header(reqwest::header::ACCEPT, "application/json")
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let output = response.json::<Output>().await?;
+            Ok(output)
         } else {
             Err(format!("Failed with status code: {}", response.status()).into())
         }

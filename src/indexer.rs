@@ -1,14 +1,25 @@
+use std::convert::Into;
+use std::env;
+use lazy_static::lazy_static;
+use std::string::ToString;
 use crate::database::Database;
 use crate::models::{Inscriptions, Ord20};
 use crate::ordinals::{Block, Inscription, Ordinals};
 use crate::util::{bigdecimal_fractional_count, string_to_timestamp};
+use crate::SHUTTING_DOWN;
 use bigdecimal::{BigDecimal, Zero};
 use hex::decode;
+use std::sync::atomic::Ordering;
 use std::sync::{mpsc, Arc};
 use std::time::Instant;
 use tokio::sync::Semaphore;
 
-const MAX_CONCURRENT_REQUESTS: usize = 100;
+lazy_static! {
+    static ref MAX_CONCURRENT_REQUESTS: usize = {
+        let max_concurrent_requests_str = env::var("MAX_CONCURRENT_REQUESTS").unwrap_or("10".to_string());
+        max_concurrent_requests_str.parse::<usize>().expect("MAX_CONCURRENT_REQUESTS must be a positive integer")
+    };
+}
 
 pub struct Indexer {
     pub ordinals: Ordinals,
@@ -18,8 +29,8 @@ pub struct Indexer {
 
 impl Indexer {
     pub(crate) async fn get_blocks(&mut self, target_block: i32) {
-        let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS));
-        let (tx, rx) = mpsc::sync_channel::<_>(MAX_CONCURRENT_REQUESTS * 2);
+        let semaphore = Arc::new(Semaphore::new(*MAX_CONCURRENT_REQUESTS));
+        let (tx, rx) = mpsc::sync_channel::<_>(*MAX_CONCURRENT_REQUESTS * 2);
         let status = self
             .database
             .get_status("last_height".to_string())
@@ -48,6 +59,10 @@ impl Indexer {
 
                 tx.send(block_request)
                     .expect("Failed to send block to channel");
+
+                if SHUTTING_DOWN.load(Ordering::Relaxed) {
+                    break;
+                }
             }
         });
 
@@ -55,12 +70,13 @@ impl Indexer {
             match block_future.await {
                 Ok(block) => {
                     let start_time = Instant::now();
-                    let processed = self.process_block(block.as_ref().unwrap());
+                    let processed = self.process_block(block.as_ref().unwrap()).await;
                     let elapsed_time = start_time.elapsed();
                     log::info!(
-                        "Block {}/{}, Txs: {}, Inscriptions: {}, Time: {:?}",
+                        "Block {}/{}, Timestamp: {}, Txs: {}, Inscriptions: {}, Time: {:?}",
                         block.as_ref().unwrap().height,
                         target_block,
+                        block.as_ref().unwrap().timestamp,
                         block.as_ref().unwrap().transactions.len(),
                         processed,
                         elapsed_time
@@ -77,7 +93,7 @@ impl Indexer {
         }
     }
 
-    pub(crate) fn process_block(&mut self, block: &Block) -> i32 {
+    pub(crate) async fn process_block(&mut self, block: &Block) -> i32 {
         let mut inscriptions_count = 0;
         let mut block_miner_address = "";
         for txs in &block.transactions {
@@ -91,20 +107,37 @@ impl Indexer {
                 block_miner_address = txs.output_addresses.get(0).unwrap();
                 log::debug!("Block Miner Address: {}", block_miner_address);
             }
+            let mut fetched_up_to_index = -1;
             let mut input_offset = 0;
-            for (input, input_value) in &txs.inputs {
+            for (index, (input, _input_value)) in txs.inputs.iter().enumerate() {
                 // Check inputs for transfer inscription
                 if let Ok(inscription) = self.database.get_inscription_by_output(input.to_string())
                 {
-                    let vout = Indexer::calculate_ordinal_position(input_offset, &txs.outputs);
-                    let address_receiver = if vout > txs.outputs.len() - 1 {
-                        block_miner_address
-                    } else {
-                        txs.output_addresses.get(vout).unwrap()
-                    };
                     if inscription.action.contains("transfer")
                         && !inscription.spent.unwrap_or_default()
                     {
+                        if index > 0 {
+                            for backfill_index in (fetched_up_to_index + 1) as usize..index {
+                                let (backfill_input, _) = &txs.inputs[backfill_index];
+
+                                // Fetch the input_value from the database for this backfill input
+                                if let Ok(output) = self.ordinals.get_output(backfill_input.to_string()).await {
+                                    log::info!("Get output for index {}:  {:?}", backfill_input, output);
+                                    input_offset += output.value;
+                                    // Update fetched_up_to_index since we've now fetched this input_value
+                                    fetched_up_to_index = backfill_index as isize;
+                                } else {
+                                    log::error!("Failed to get output value for input: {}", backfill_input.to_string());
+                                }
+                            }
+                        }
+
+                        let vout = Indexer::calculate_ordinal_position(index, input_offset, &txs.outputs);
+                        let address_receiver = if vout > txs.outputs.len() - 1 {
+                            block_miner_address
+                        } else {
+                            txs.output_addresses.get(vout).unwrap()
+                        };
                         if let Ok(transfer_inscription) = self.database.update_inscription_spent(
                             inscription.id,
                             inscription.genesis_address,
@@ -113,11 +146,12 @@ impl Indexer {
                             0,
                             block.height as i64,
                         ) {
-                            self.process_inscription_transfer(&transfer_inscription);
+                            if transfer_inscription.valid.unwrap_or_default() {
+                                self.process_inscription_transfer(&transfer_inscription);
+                            }
                         }
                     }
                 }
-                input_offset += input_value;
             }
             if !txs.inscriptions.is_empty() && address.is_empty() {
                 log::warn!("Empty address on tx {}", txs.transaction);
@@ -149,6 +183,7 @@ impl Indexer {
                             .map(|s| String::from_utf8_lossy(s.as_slice()).into_owned())
                             .unwrap(),
                     ) {
+                        log::debug!("Process Inscription: {:?}", inscription);
                         inscriptions_count += 1;
                         self.process_inscription(&inscription);
                     }
@@ -159,11 +194,18 @@ impl Indexer {
     }
 
     pub(crate) fn calculate_ordinal_position(
+        input_index: usize,
         ordinal_offset: u64,
         outputs: &Vec<(String, u64)>,
     ) -> usize {
         let mut output_index = 0;
         let mut output_count = 0;
+
+        // Skip check if ordinal input is first input in transaction
+        // Assumptions: ordinal inscribed at offset 0 of input is on output 0
+        if input_index == 0 {
+            return output_index;
+        }
 
         for (_, output) in outputs {
             output_count += output;
@@ -222,7 +264,7 @@ impl Indexer {
             if ticker.is_err() {
                 let decimal = inscription.decimal.unwrap_or(18);
 
-                if !(0..=10).contains(&decimal) {
+                if !(0..=18).contains(&decimal) {
                     return;
                 }
 
@@ -368,6 +410,10 @@ impl Indexer {
                         inscription.height,
                         inscription.timestamp,
                     );
+
+                    let _ = self
+                        .database
+                        .update_inscription_valid(inscription.id, !invalid);
                 }
             }
         }
@@ -382,20 +428,32 @@ impl Indexer {
         let mut holders_change = 0;
 
         if let Ok(receiver_balance) = self.database.get_balance(
-            inscription.address_receiver.clone().unwrap_or_default(),
+            inscription.address_receiver.clone().unwrap(),
             inscription.ticker.clone(),
         ) {
+            if receiver_balance.balance.clone() == BigDecimal::zero()
+                && receiver_balance.transfer_balance.clone() == BigDecimal::zero()
+            {
+                holders_change = 1;
+            }
+
             receiver_balance_current = receiver_balance.balance;
             receiver_transfer_balance_current = receiver_balance.transfer_balance;
+        } else {
+            // If no existing entry exists then create a new one
+            let _ = self.database.create_balance(
+                inscription.address_receiver.clone().unwrap(),
+                inscription.ticker.clone(),
+            );
             holders_change = 1;
         }
 
         if let Ok(sender_balance) = self.database.get_balance(
-            inscription.address_sender.clone().unwrap_or_default(),
+            inscription.address_sender.clone().unwrap(),
             inscription.ticker.clone(),
         ) {
             let sender_transfer_balance_new = sender_balance.transfer_balance - amount.clone();
-            let receiver_balance_new = receiver_balance_current - amount;
+            let receiver_balance_new = receiver_balance_current + amount;
 
             if sender_balance.balance.clone() == BigDecimal::zero()
                 && sender_transfer_balance_new.clone() == BigDecimal::zero()

@@ -98,6 +98,13 @@ impl Database {
             .first(&mut self.connection)
     }
 
+    pub fn update_inscription_valid(&mut self, id: i32, valid: bool) -> QueryResult<Inscriptions> {
+        diesel::update(inscriptions::table)
+            .filter(inscriptions::id.eq(&id))
+            .set((inscriptions::valid.eq(&valid),))
+            .get_result(&mut self.connection)
+    }
+
     pub fn update_inscription_spent(
         &mut self,
         id: i32,

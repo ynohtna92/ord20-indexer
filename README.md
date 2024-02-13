@@ -45,11 +45,16 @@ Once the indexer is started and connected to a local ordinals server, it will pr
 Ord20 Indexer and its prerequisites can be installed from the command line.
 
 ### Prerequisites
-1. Install Rust
+1. Install Rust and its Dependencies
     ```sh
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
     ```
     This project is developed with rust and can be built from source.
+
+    ```sh
+   # Linux dependencies
+    sudo apt install libpq-dev libssl-dev
+    ```
 
 2. Install PostgreSQL
 * PostgreSQL (Linux)
@@ -63,7 +68,9 @@ Ord20 Indexer and its prerequisites can be installed from the command line.
   Modify the PostgreSQL password
   ```
   sudo -u postgres psql
-  \\password
+  \password
+  
+  # Set a unique password and modify .env otherwise set to 'password'
   ```
 * PostgreSQL (Mac)
   ```sh
@@ -76,8 +83,8 @@ Ord20 Indexer and its prerequisites can be installed from the command line.
 
 3. Install Diesel
     ```sh
-   cargo install diesel_cli --no-default-features --features postgres
-   ```
+    cargo install diesel_cli --no-default-features --features postgres
+    ```
 
 ### Installation
 
@@ -111,13 +118,13 @@ Ord20 Indexer and its prerequisites can be installed from the command line.
     ```sh
     git clone https://github.com/ynohtna92/ord-litecoin.git
     cd ord-litecoin
-    git checkout api
+    git checkout api-15
     cargo build --release
     ```
 
 7. Run the ordinals server, and allow it to fully synchronise.
     ```
-    ./ord server
+    ./ord server -j
     ```
 
 8. Configure the ord20-indexer in your `.env` file.
@@ -138,14 +145,15 @@ Ord20 Indexer and its prerequisites can be installed from the command line.
     DATABASE_URL=postgres://postgres:password@localhost/ord20-indexer
     ```
 
-9. Run the database installation scripts
+9. Create database and then run the database installation scripts
     ```
+    sudo -u postgres -p password createdb ord20-indexer
     diesel migration run
     ```
 
 10. Run the ord-20 indexer
     ```
-    ./ord20-indexer
+    ./target/release/ord20-indexer
     ```
 
 <!-- ROADMAP -->

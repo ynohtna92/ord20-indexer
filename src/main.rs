@@ -12,13 +12,27 @@ use crate::indexer::Indexer;
 use crate::ordinals::Ordinals;
 use dotenv::dotenv;
 use std::env;
+use std::process::exit;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use std::time::Duration;
+
+static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
     env_logger::init();
+
+    ctrlc::set_handler(move || {
+        if SHUTTING_DOWN.fetch_or(true, Ordering::Relaxed) {
+            exit(1);
+        }
+
+        SHUTTING_DOWN.store(true, Ordering::SeqCst);
+        println!("Ctrl+C received! Shutting down gracefully. Press <CTRL-C> again to shutdown immediately...");
+    })
+    .expect("Error setting Ctrl+C handler");
 
     let ordinals_url =
         env::var("ORDINALS_BASE_URL").expect("ORDINALS_BASE_URL must be set in .env file");
@@ -49,8 +63,13 @@ async fn main() {
 
         if let Ok(current_height) = indexer.ordinals.get_block_height().await {
             if last_height < current_height - blocks_behind {
-                indexer.get_blocks(current_height).await;
+                indexer.get_blocks(current_height - blocks_behind).await;
             }
+        }
+
+        if SHUTTING_DOWN.load(Ordering::Relaxed) {
+            log::info!("Shutting down indexer.");
+            break;
         }
 
         sleep(Duration::from_secs(5));
