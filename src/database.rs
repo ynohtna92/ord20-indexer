@@ -127,6 +127,7 @@ impl Database {
             .get_result(&mut self.connection)
     }
 
+    #[allow(unused)]
     pub fn get_latest_inscription(&mut self) -> QueryResult<Inscriptions> {
         inscriptions::table
             .order(inscriptions::id.desc())

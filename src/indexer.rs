@@ -100,14 +100,14 @@ impl Indexer {
         let mut inscriptions_count = 0;
         let mut block_miner_address = "";
         for txs in &block.transactions {
-            let (output, _output_value) = txs.outputs.get(0).unwrap();
+            let (output, _output_value) = txs.outputs.first().unwrap();
             let address = if !txs.output_addresses.is_empty() {
-                txs.output_addresses.get(0).unwrap()
+                txs.output_addresses.first().unwrap()
             } else {
                 ""
             };
             if block_miner_address.is_empty() {
-                block_miner_address = txs.output_addresses.get(0).unwrap();
+                block_miner_address = txs.output_addresses.first().unwrap();
                 log::debug!("Block Miner Address: {}", block_miner_address);
             }
             let mut fetched_up_to_index = -1;
@@ -540,7 +540,7 @@ mod tests {
             ("output3".to_string(), 20),
         ];
         assert_eq!(
-            Indexer::calculate_ordinal_position(ordinal_offset, &outputs),
+            Indexer::calculate_ordinal_position(usize::MAX, ordinal_offset, &outputs),
             1
         );
     }
@@ -554,7 +554,7 @@ mod tests {
             ("output3".to_string(), 20),
         ];
         assert_eq!(
-            Indexer::calculate_ordinal_position(ordinal_offset, &outputs),
+            Indexer::calculate_ordinal_position(usize::MAX, ordinal_offset, &outputs),
             0
         );
     }
@@ -568,7 +568,7 @@ mod tests {
             ("output3".to_string(), 20),
         ];
         assert_eq!(
-            Indexer::calculate_ordinal_position(ordinal_offset, &outputs),
+            Indexer::calculate_ordinal_position(usize::MAX, ordinal_offset, &outputs),
             3
         );
     }

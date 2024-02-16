@@ -179,6 +179,7 @@ impl Ordinals {
         }
     }
 
+    #[allow(unused)]
     pub(crate) async fn get_inscription_content(
         &mut self,
         inscription_id: String,
