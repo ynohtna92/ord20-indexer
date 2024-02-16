@@ -16,3 +16,4 @@ CREATE TABLE history (
 CREATE INDEX idx_history_address_sender ON history(address_sender);
 CREATE INDEX idx_history_address_receiver ON history(address_receiver);
 CREATE INDEX idx_history_ticker ON history(ticker);
+CREATE INDEX idx_history_action ON history(action);

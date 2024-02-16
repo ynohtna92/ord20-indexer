@@ -16,9 +16,12 @@ CREATE TABLE inscriptions (
     timestamp BIGINT NOT NULL,
     output TEXT UNIQUE NOT NULL,
     value BIGINT,
-    valid BOOLEAN,
-    spent BOOLEAN,
+    valid BOOLEAN DEFAULT FALSE,
+    spent BOOLEAN DEFAULT FALSE,
     spent_tx TEXT,
     spent_offset BIGINT,
     spent_height BIGINT
-)
+);
+
+CREATE INDEX idx_inscriptions_genesis_address ON inscriptions(genesis_address);
+CREATE INDEX idx_inscriptions_spent ON inscriptions(spent);
