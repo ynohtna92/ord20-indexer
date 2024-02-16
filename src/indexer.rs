@@ -1,7 +1,3 @@
-use std::convert::Into;
-use std::env;
-use lazy_static::lazy_static;
-use std::string::ToString;
 use crate::database::Database;
 use crate::models::{Inscriptions, Ord20};
 use crate::ordinals::{Block, Inscription, Ordinals};
@@ -9,6 +5,10 @@ use crate::util::{bigdecimal_fractional_count, string_to_timestamp};
 use crate::SHUTTING_DOWN;
 use bigdecimal::{BigDecimal, Zero};
 use hex::decode;
+use lazy_static::lazy_static;
+use std::convert::Into;
+use std::env;
+use std::string::ToString;
 use std::sync::atomic::Ordering;
 use std::sync::{mpsc, Arc};
 use std::time::Instant;
@@ -16,8 +16,11 @@ use tokio::sync::Semaphore;
 
 lazy_static! {
     static ref MAX_CONCURRENT_REQUESTS: usize = {
-        let max_concurrent_requests_str = env::var("MAX_CONCURRENT_REQUESTS").unwrap_or("10".to_string());
-        max_concurrent_requests_str.parse::<usize>().expect("MAX_CONCURRENT_REQUESTS must be a positive integer")
+        let max_concurrent_requests_str =
+            env::var("MAX_CONCURRENT_REQUESTS").unwrap_or("10".to_string());
+        max_concurrent_requests_str
+            .parse::<usize>()
+            .expect("MAX_CONCURRENT_REQUESTS must be a positive integer")
     };
 }
 
@@ -121,18 +124,28 @@ impl Indexer {
                                 let (backfill_input, _) = &txs.inputs[backfill_index];
 
                                 // Fetch the input_value from the database for this backfill input
-                                if let Ok(output) = self.ordinals.get_output(backfill_input.to_string()).await {
-                                    log::info!("Get output for index {}:  {:?}", backfill_input, output);
+                                if let Ok(output) =
+                                    self.ordinals.get_output(backfill_input.to_string()).await
+                                {
+                                    log::info!(
+                                        "Get output for index {}:  {:?}",
+                                        backfill_input,
+                                        output
+                                    );
                                     input_offset += output.value;
                                     // Update fetched_up_to_index since we've now fetched this input_value
                                     fetched_up_to_index = backfill_index as isize;
                                 } else {
-                                    log::error!("Failed to get output value for input: {}", backfill_input.to_string());
+                                    log::error!(
+                                        "Failed to get output value for input: {}",
+                                        backfill_input.to_string()
+                                    );
                                 }
                             }
                         }
 
-                        let vout = Indexer::calculate_ordinal_position(index, input_offset, &txs.outputs);
+                        let vout =
+                            Indexer::calculate_ordinal_position(index, input_offset, &txs.outputs);
                         let address_receiver = if vout > txs.outputs.len() - 1 {
                             block_miner_address
                         } else {
