@@ -113,6 +113,7 @@ impl Database {
         spent_tx: String,
         spent_offset: i64,
         spent_height: i64,
+        spent_timestamp: i64,
     ) -> QueryResult<Inscriptions> {
         diesel::update(inscriptions::table)
             .filter(inscriptions::id.eq(&id))
@@ -123,6 +124,7 @@ impl Database {
                 inscriptions::spent.eq(true),
                 inscriptions::spent_offset.eq(&spent_offset),
                 inscriptions::spent_height.eq(&spent_height),
+                inscriptions::spent_timestamp.eq(&spent_timestamp),
             ))
             .get_result(&mut self.connection)
     }

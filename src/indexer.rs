@@ -158,6 +158,7 @@ impl Indexer {
                             txs.transaction.clone(),
                             0,
                             block.height as i64,
+                            string_to_timestamp(block.timestamp.as_str()).unwrap_or(0),
                         ) {
                             if transfer_inscription.valid.unwrap_or_default() {
                                 self.process_inscription_transfer(&transfer_inscription);

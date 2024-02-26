@@ -20,7 +20,8 @@ CREATE TABLE inscriptions (
     spent BOOLEAN DEFAULT FALSE,
     spent_tx TEXT,
     spent_offset BIGINT,
-    spent_height BIGINT
+    spent_height BIGINT,
+    spent_timestamp BIGINT
 );
 
 CREATE INDEX idx_inscriptions_genesis_address ON inscriptions(genesis_address);

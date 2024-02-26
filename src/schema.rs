@@ -51,6 +51,7 @@ diesel::table! {
         spent_tx -> Nullable<Text>,
         spent_offset -> Nullable<Int8>,
         spent_height -> Nullable<Int8>,
+        spent_timestamp -> Nullable<Int8>,
     }
 }
 

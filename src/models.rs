@@ -80,6 +80,7 @@ pub struct Inscriptions {
     pub spent_tx: Option<String>,
     pub spent_offset: Option<i64>,
     pub spent_height: Option<i64>,
+    pub spent_timestamp: Option<i64>,
 }
 
 #[derive(Insertable)]
