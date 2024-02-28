@@ -105,6 +105,7 @@ impl Database {
             .get_result(&mut self.connection)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update_inscription_spent(
         &mut self,
         id: i32,
