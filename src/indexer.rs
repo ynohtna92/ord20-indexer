@@ -73,7 +73,24 @@ impl Indexer {
             match block_future.await {
                 Ok(block) => {
                     let start_time = Instant::now();
-                    let processed = self.process_block(block.as_ref().unwrap()).await;
+                    log::debug!("start_time: {:?}", start_time);
+
+                    let block_ref = block.as_ref();
+                    log::debug!("block_ref: {:?}", block_ref);
+
+                    let unwrapped_block = match block_ref {
+                        Ok(b) => b,
+                        Err(e) => {
+                          log::debug!("Error unwrapping block: {:?}", e);
+                          continue; // Skip this iteration due to unwrapping error
+                        }
+                    };
+
+                    log::debug!("unwrapped_block: {:?}", unwrapped_block);
+
+                    let processed = self.process_block(unwrapped_block).await;
+                    log::debug!("processed: {:?}", processed);
+
                     let elapsed_time = start_time.elapsed();
                     log::info!(
                         "Block {}/{}, Timestamp: {}, Txs: {}, Inscriptions: {}, Time: {:?}",
