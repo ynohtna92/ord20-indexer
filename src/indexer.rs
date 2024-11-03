@@ -199,18 +199,21 @@ impl Indexer {
                     location: "".to_string(),
                     address: "".to_string(),
                     genesis_address: address.to_string(),
-                    content_type: decode(tx_inscription.content_type.clone())
-                        .map(|s| String::from_utf8_lossy(s.as_slice()).into_owned())
-                        .unwrap(),
+                    content_type: tx_inscription.content_type.as_ref().map(|s| {
+                        decode(s.as_bytes())
+                            .map(|decoded| String::from_utf8_lossy(&decoded).into_owned())
+                            .unwrap_or_else(|_| String::new())
+                    }),
                     timestamp: block.timestamp.clone(),
                 };
                 if inscription.number > 0
-                    && (inscription.content_type.contains("text/plain")
-                        || inscription.content_type.contains("application/json"))
+                    && inscription.content_type.as_ref().map_or(false, |ct| {
+                        ct.contains("text/plain") || ct.contains("application/json")
+                    })
                 {
                     if let Some(inscription) = self.add_inscription(
                         inscription,
-                        decode(tx_inscription.content.clone())
+                        decode(tx_inscription.content.clone().unwrap())
                             .map(|s| String::from_utf8_lossy(s.as_slice()).into_owned())
                             .unwrap(),
                     ) {

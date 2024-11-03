@@ -22,7 +22,7 @@ pub struct Inscription {
     pub location: String,
     pub address: String,
     pub genesis_address: String,
-    pub content_type: String,
+    pub content_type: Option<String>,
     pub timestamp: String,
 }
 
@@ -30,8 +30,8 @@ pub struct Inscription {
 pub struct TransactionInscription {
     pub inscription_id: String,
     pub inscription_number: i64,
-    pub content_type: String,
-    pub content: String,
+    pub content_type: Option<String>,
+    pub content: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -194,5 +194,68 @@ impl Ordinals {
         } else {
             Err(format!("Failed with status code: {}", response.status()).into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ordinals::TransactionInscription;
+
+    #[test]
+    fn test_transaction_inscription_deserialization() {
+        let json_data = "
+        {
+            \"inscription_id\": \"71e0f6dc87a473aa69787fff8e09e5eddfdca96e587928a5b1a25c0ae16dc0eei0\",
+            \"inscription_number\": 0,
+            \"content_type\": \"text/plain\",
+            \"content\": \"hello world\"
+        }";
+
+        let result: Result<TransactionInscription, serde_json::Error> =
+            serde_json::from_str(json_data);
+
+        assert!(result.is_ok());
+
+        let transaction_inscription = result.unwrap();
+
+        assert_eq!(
+            transaction_inscription.inscription_id,
+            "71e0f6dc87a473aa69787fff8e09e5eddfdca96e587928a5b1a25c0ae16dc0eei0"
+        );
+        assert_eq!(transaction_inscription.inscription_number, 0);
+        assert_eq!(
+            transaction_inscription.content_type,
+            Some("text/plain".to_string())
+        );
+        assert_eq!(
+            transaction_inscription.content,
+            Some("hello world".to_string())
+        );
+    }
+
+    #[test]
+    fn test_transaction_inscription_null_content_deserialization() {
+        let json_data = "
+        {
+            \"inscription_id\": \"71e0f6dc87a473aa69787fff8e09e5eddfdca96e587928a5b1a25c0ae16dc0eei0\",
+            \"inscription_number\": 0,
+            \"content_type\": null,
+            \"content\": null
+        }";
+
+        let result: Result<TransactionInscription, serde_json::Error> =
+            serde_json::from_str(json_data);
+
+        assert!(result.is_ok());
+
+        let transaction_inscription = result.unwrap();
+
+        assert_eq!(
+            transaction_inscription.inscription_id,
+            "71e0f6dc87a473aa69787fff8e09e5eddfdca96e587928a5b1a25c0ae16dc0eei0"
+        );
+        assert_eq!(transaction_inscription.inscription_number, 0);
+        assert_eq!(transaction_inscription.content_type, None);
+        assert_eq!(transaction_inscription.content, None);
     }
 }
