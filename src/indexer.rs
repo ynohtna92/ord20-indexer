@@ -124,8 +124,10 @@ impl Indexer {
                 ""
             };
             if block_miner_address.is_empty() {
-                block_miner_address = txs.output_addresses.first().unwrap();
-                log::debug!("Block Miner Address: {}", block_miner_address);
+                if txs.output_addresses.first().is_some() {
+                    block_miner_address = txs.output_addresses.first().unwrap();
+                    log::debug!("Block Miner Address: {}", block_miner_address);
+                }
             }
             let mut fetched_up_to_index = -1;
             let mut input_offset = 0;
