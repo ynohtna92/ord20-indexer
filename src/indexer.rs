@@ -107,8 +107,12 @@ impl Indexer {
                 ""
             };
             if block_miner_address.is_empty() {
-                block_miner_address = txs.output_addresses.first().unwrap();
-                log::debug!("Block Miner Address: {}", block_miner_address);
+                if txs.output_addresses.is_empty() {
+                    log::debug!("Block coinbase sent to empty address");
+                } else {
+                    block_miner_address = txs.output_addresses.first().unwrap();
+                    log::debug!("Block Miner Address: {}", block_miner_address);
+                }
             }
             let mut fetched_up_to_index = -1;
             let mut input_offset = 0;
@@ -147,13 +151,14 @@ impl Indexer {
                         let vout =
                             Indexer::calculate_ordinal_position(index, input_offset, &txs.outputs);
                         let address_receiver = if vout > txs.outputs.len() - 1 {
-                            block_miner_address
+                            // Invalid output - Return balance to sender address
+                            inscription.genesis_address.as_str()
                         } else {
                             txs.output_addresses.get(vout).unwrap()
                         };
                         if let Ok(transfer_inscription) = self.database.update_inscription_spent(
                             inscription.id,
-                            inscription.genesis_address,
+                            inscription.genesis_address.clone(),
                             address_receiver.to_string(),
                             txs.transaction.clone(),
                             0,
