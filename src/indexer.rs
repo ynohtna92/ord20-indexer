@@ -195,7 +195,7 @@ impl Indexer {
                     timestamp: block.timestamp.clone(),
                 };
                 if inscription.number > 0
-                    && inscription.content_type.as_ref().map_or(false, |ct| {
+                    && inscription.content_type.as_ref().is_some_and(|ct| {
                         ct.contains("text/plain") || ct.contains("application/json")
                     })
                 {
@@ -290,6 +290,7 @@ impl Indexer {
                     return;
                 }
 
+                #[allow(clippy::needless_as_bytes)]
                 if inscription.ticker.as_bytes().len() != 4 {
                     return;
                 }

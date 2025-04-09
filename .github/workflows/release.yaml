@@ -15,11 +15,11 @@ jobs:
       fail-fast: false
       matrix:
         target:
-        - x86_64-apple-darwin
+        - aarch64-apple-darwin
         - x86_64-pc-windows-msvc
         - x86_64-unknown-linux-gnu
         include:
-        - target: x86_64-apple-darwin
+        - target: aarch64-apple-darwin
           os: macos-latest
           target_rustflags: ''
         - target: x86_64-pc-windows-msvc
@@ -54,6 +54,12 @@ jobs:
         choco install postgresql --version=16 --force --params '/Password:postgres'
         echo 'C:\Program Files\PostgreSQL\16\bin' >> $GITHUB_PATH
         echo 'C:\Program Files\PostgreSQL\16\lib' >> $GITHUB_PATH
+
+    - name: Install PostgreSQL (MacOS)
+      if: ${{ matrix.os == 'macos-latest' }}
+      run: |
+        brew install postgresql@16
+        brew link postgresql@16 --force
 
     - name: Release Type
       id: release-type
