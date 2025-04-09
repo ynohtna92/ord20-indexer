@@ -100,7 +100,6 @@ impl Indexer {
         let mut inscriptions_count = 0;
         let mut block_miner_address = "";
         for txs in &block.transactions {
-            let (output, _output_value) = txs.outputs.first().unwrap();
             let address = if !txs.output_addresses.is_empty() {
                 txs.output_addresses.first().unwrap()
             } else {
@@ -183,7 +182,7 @@ impl Indexer {
                     genesis_height: block.height as i64,
                     genesis_transaction: txs.transaction.clone(),
                     inscription_id: tx_inscription.inscription_id.clone(),
-                    output: output.to_string(),
+                    output: tx_inscription.inscription_id.replace('i', ":"),
                     location: "".to_string(),
                     address: "".to_string(),
                     genesis_address: address.to_string(),
@@ -195,7 +194,7 @@ impl Indexer {
                     timestamp: block.timestamp.clone(),
                 };
                 if inscription.number > 0
-                    && inscription.content_type.as_ref().map_or(false, |ct| {
+                    && inscription.content_type.as_ref().is_some_and(|ct| {
                         ct.contains("text/plain") || ct.contains("application/json")
                     })
                 {
@@ -290,6 +289,7 @@ impl Indexer {
                     return;
                 }
 
+                #[allow(clippy::needless_as_bytes)]
                 if inscription.ticker.as_bytes().len() != 4 {
                     return;
                 }

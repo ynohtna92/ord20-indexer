@@ -1,15 +1,18 @@
 use serde::Deserialize;
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Inscriptions {
     pub inscriptions: Vec<InscriptionItem>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct InscriptionItem {
     pub href: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Inscription {
     pub number: i64,
@@ -43,6 +46,7 @@ pub struct Transaction {
     pub inscriptions: Vec<TransactionInscription>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Block {
     pub hash: String,
@@ -55,6 +59,7 @@ pub struct Block {
     pub weight: i32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Output {
     pub address: String,

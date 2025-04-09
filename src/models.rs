@@ -13,6 +13,7 @@ pub struct Ord20 {
     pub dec: Option<i32>,
 }
 
+#[allow(dead_code)]
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::status)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -54,6 +55,19 @@ struct InscriptionsTransferInsert {
     pub spent_height: Option<i64>,
 }
 
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::tracker)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct TrackerInsert {
+    pub deploy_inscription_num: i64,
+    pub deploy_inscription: String,
+    pub ticker: String,
+    pub supply: BigDecimal,
+    pub limit_mint: BigDecimal,
+    pub decimals: i32,
+}
+
+#[allow(dead_code)]
 #[derive(Debug, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::inscriptions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -83,18 +97,7 @@ pub struct Inscriptions {
     pub spent_timestamp: Option<i64>,
 }
 
-#[derive(Insertable)]
-#[diesel(table_name = crate::schema::tracker)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct TrackerInsert {
-    pub deploy_inscription_num: i64,
-    pub deploy_inscription: String,
-    pub ticker: String,
-    pub supply: BigDecimal,
-    pub limit_mint: BigDecimal,
-    pub decimals: i32,
-}
-
+#[allow(dead_code)]
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::tracker)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -121,6 +124,7 @@ pub struct BalancesInsert {
     pub ticker: String,
 }
 
+#[allow(dead_code)]
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::balances)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -149,6 +153,7 @@ pub struct HistoryInsert {
     pub timestamp: i64,
 }
 
+#[allow(dead_code)]
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::history)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

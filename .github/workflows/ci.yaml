@@ -64,6 +64,12 @@ jobs:
           echo 'C:\Program Files\PostgreSQL\16\bin' >> $GITHUB_PATH
           echo 'C:\Program Files\PostgreSQL\16\lib' >> $GITHUB_PATH
 
+      - name: Install PostgreSQL (MacOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install postgresql@16
+          brew link postgresql@16 --force
+
       - uses: Swatinem/rust-cache@v2
 
       - name: Test
